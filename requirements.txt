@@ -1,0 +1,10 @@
+pyzotero>=1.5.18
+pypdf>=4.2
+langgraph>=0.2.40
+langchain-core>=0.3.0
+langchain-deepseek>=0.1.2
+langchain-openai>=0.2.0
+langchain-ollama>=0.3.3
+langchain-google-genai>=2.0.0
+pydantic>=2.6
+python-dotenv>=1.0

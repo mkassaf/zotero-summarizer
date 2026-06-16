@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zotero-summarizer"
+version = "0.1.0"
+description = "Scan a Zotero collection, summarize each paper's PDF, and write the summary back as a note (LangGraph + DeepSeek)."
+requires-python = ">=3.10"
+dependencies = [
+    "pyzotero>=1.5.18",
+    "pypdf>=4.2",
+    "langgraph>=0.2.40",
+    "langchain-core>=0.3.0",
+    "langchain-deepseek>=0.1.2",
+    "langchain-openai>=0.2.0",
+    "pydantic>=2.6",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+zotero-summarizer = "zotero_summarizer.cli:main"
+
+[tool.setuptools]
+packages = ["zotero_summarizer"]
