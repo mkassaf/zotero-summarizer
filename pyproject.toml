@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zotery"
-version = "0.0.1"
+version = "0.0.2"
 description = "Scan a Zotero collection, summarize each paper's PDF, and write the summary back as a note (LangGraph + DeepSeek)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,7 +40,7 @@ Repository = "https://github.com/mkassaf/zotero-summarizer"
 Issues = "https://github.com/mkassaf/zotero-summarizer/issues"
 
 [project.scripts]
-zotero-summarizer = "zotero_summarizer.cli:main"
+zotery = "zotero_summarizer.cli:main"
 
 [tool.setuptools]
 packages = ["zotero_summarizer"]

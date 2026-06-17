@@ -8,8 +8,8 @@ Scan a **Zotero** collection, read each paper's attached **PDF**, generate a
 structured summary with an **LLM** (DeepSeek, Google Gemini, or a local Ollama
 model), and write that summary back into Zotero as a **child note** on the paper.
 
-> **Names:** the PyPI package is **`zotery`**; the installed command is
-> **`zotero-summarizer`** (the Python module is `zotero_summarizer`).
+> Install it as **`zotery`**, run it as **`zotery`**. (The Python module is
+> `zotero_summarizer`.)
 
 Every summary contains four sections:
 
@@ -52,15 +52,15 @@ which speaks to both Zotero APIs:
 
 Requires **Python 3.10+** (the LangChain stack no longer supports 3.9).
 
-From PyPI (current version **0.0.1**):
+From PyPI (current version **0.0.2**):
 
 ```bash
 pip install zotery
 # or, with uv:
-uv tool install zotery      # installs the `zotero-summarizer` command globally
+uv tool install zotery      # installs the `zotery` command globally
 ```
 
-This puts the `zotero-summarizer` command on your PATH. Then create a config file
+This puts the `zotery` command on your PATH. Then create a config file
 from the template and edit it (see below):
 
 ```bash
@@ -136,12 +136,12 @@ The Zotero key works the same way: `--zotero-api-key` overrides `ZOTERO_API_KEY`
 
 ```bash
 # Example: provider + key entirely from the command line, no .env needed
-zotero-summarizer "Literature Review" \
+zotery "Literature Review" \
   --llm-api-key "$MY_KEY" --zotero-api-key "$ZKEY"
 
 # Example: rely on a globally-exported key (e.g. in ~/.zshrc)
 export OPENAI_API_KEY=sk-...
-LLM_PROVIDER=openai LLM_MODEL=gpt-4o-mini zotero-summarizer "Literature Review"
+LLM_PROVIDER=openai LLM_MODEL=gpt-4o-mini zotery "Literature Review"
 ```
 
 > Ollama tip: the default base URL is `http://127.0.0.1:11434`. Use `127.0.0.1`,
@@ -149,24 +149,24 @@ LLM_PROVIDER=openai LLM_MODEL=gpt-4o-mini zotero-summarizer "Literature Review"
 
 ## Usage
 
-After `pip install zotery`, use the `zotero-summarizer` command (or, from a
-source checkout, `python -m zotero_summarizer`):
+After `pip install zotery`, use the `zotery` command (or, from a source
+checkout, `python -m zotero_summarizer`):
 
 ```bash
 # Summarize every paper in a collection (by name or 8-char key)
-zotero-summarizer "Literature Review"
+zotery "Literature Review"
 
 # Preview first: generate + print summaries, write nothing
-zotero-summarizer "Literature Review" --dry-run --limit 3
+zotery "Literature Review" --dry-run --limit 3
 
 # Re-summarize papers that already have an AI note
-zotero-summarizer ABCD1234 --force
+zotery ABCD1234 --force
 ```
 
 Override the provider per-run without editing `.env`:
 
 ```bash
-LLM_PROVIDER=google LLM_MODEL=gemini-2.5-flash zotero-summarizer "Literature Review"
+LLM_PROVIDER=google LLM_MODEL=gemini-2.5-flash zotery "Literature Review"
 ```
 
 Flags:
@@ -181,6 +181,49 @@ Flags:
 
 Re-runs are **idempotent**: papers that already have an AI summary note are
 skipped unless you pass `--force`.
+
+### Run locally & free with Ollama
+
+[Ollama](https://ollama.com) runs an LLM on your own machine — **no API key, no
+per-token cost, nothing leaves your computer**. Good for private libraries or
+large runs you don't want to pay for. It's slower per paper and quality depends
+on the model you pick.
+
+**1. Install Ollama and pull a model** (a ~5 GB instruct model is a good start):
+
+```bash
+# Install: https://ollama.com/download  (or `brew install ollama` on macOS)
+ollama serve            # start the server (skip if the desktop app is running)
+ollama pull qwen3:8b    # download the model
+```
+
+**2. Point zotery at Ollama and run:**
+
+```bash
+# One-off, all on the command line (no .env edits, no key needed):
+LLM_PROVIDER=ollama LLM_MODEL=qwen3:8b zotery "Literature Review"
+
+# Safe first run: print summaries without writing notes to Zotero
+LLM_PROVIDER=ollama LLM_MODEL=qwen3:8b zotery "Literature Review" --dry-run --limit 3
+```
+
+Or set it once in `.env` and just run `zotery "Literature Review"`:
+
+```ini
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3:8b
+# LLM_BASE_URL=http://127.0.0.1:11434   # optional; this is the default
+```
+
+Notes:
+
+- **No `--llm-api-key` / `LLM_API_KEY` needed** — Ollama is keyless. (You still
+  need a Zotero Web API key to *write* notes; use `--dry-run` to skip that.)
+- Use any model you've pulled — e.g. `LLM_MODEL=llama3.1:8b`,
+  `LLM_MODEL=mistral`. Bigger models give better summaries but run slower.
+- If Ollama runs on another host/port, set `LLM_BASE_URL` (e.g.
+  `http://192.168.1.10:11434`). Use `127.0.0.1`, **not** `localhost` — `localhost`
+  can resolve to IPv6/Docker and miss your local models.
 
 ## How it works
 

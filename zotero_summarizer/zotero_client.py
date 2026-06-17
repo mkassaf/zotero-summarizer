@@ -40,7 +40,7 @@ def _resolve_user_id(library_id: str, api_key: str) -> str:
 
 # Substring embedded in every note we create, so re-runs can detect and skip
 # papers that already have an AI summary.
-SUMMARY_MARKER = "zotero-summarizer"
+SUMMARY_MARKER = "zotery"
 
 # Zotero item/collection keys are 8 uppercase alphanumerics.
 _KEY_RE = re.compile(r"^[A-Z0-9]{8}$")

@@ -1,7 +1,9 @@
 """Command-line entry point.
 
-    python -m zotero_summarizer "My Collection"
-    python -m zotero_summarizer ABCD1234 --limit 5 --dry-run
+    zotery "My Collection"
+    zotery ABCD1234 --limit 5 --dry-run
+
+(equivalently, from a source checkout: python -m zotero_summarizer ...)
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from .zotero_client import ZoteroClient
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="zotero-summarizer",
+        prog="zotery",
         description="Summarize every paper's PDF in a Zotero collection and "
         "write the summary back as a note.",
     )
