@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zotery"
-version = "0.0.2"
+version = "0.0.3"
 description = "Scan a Zotero collection, summarize each paper's PDF, and write the summary back as a note (LangGraph + DeepSeek)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,8 @@ dependencies = [
     "langchain-core>=0.3.0",
     "langchain-deepseek>=0.1.2",
     "langchain-openai>=0.2.0",
+    "langchain-ollama>=0.3.3",
+    "langchain-google-genai>=2.0.0",
     "pydantic>=2.6",
     "python-dotenv>=1.0",
 ]

@@ -52,7 +52,7 @@ which speaks to both Zotero APIs:
 
 Requires **Python 3.10+** (the LangChain stack no longer supports 3.9).
 
-From PyPI (current version **0.0.2**):
+From PyPI (current version **0.0.3**):
 
 ```bash
 pip install zotery
