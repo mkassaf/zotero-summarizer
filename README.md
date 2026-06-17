@@ -56,7 +56,7 @@ which speaks to both Zotero APIs:
 
 Requires **Python 3.10+** (the LangChain stack no longer supports 3.9).
 
-From PyPI (current version **0.1.0**):
+From PyPI (current version **0.1.1**):
 
 ```bash
 pip install zotery
@@ -178,11 +178,24 @@ Flags:
 | flag                  | meaning                                                        |
 |-----------------------|----------------------------------------------------------------|
 | `--rq "QUESTION"`     | answer a research question per paper instead of summarizing    |
+| `--note-title "..."`  | custom heading/title for the written note (see below)          |
 | `--limit N`           | only process the first N papers                                |
 | `--dry-run`           | generate and print results, but don't write notes to Zotero    |
 | `--force`             | redo papers that already have a matching note                  |
 | `--llm-api-key KEY`   | LLM API key; overrides `LLM_API_KEY` and the provider env var  |
 | `--zotero-api-key KEY`| Zotero Web API key; overrides `ZOTERO_API_KEY`                 |
+
+**Custom note title.** Zotero shows a note's first heading as its title. By
+default that's `🤖 AI Summary` (or `🤖 Research-Question Analysis` with `--rq`);
+override it with `--note-title` to make notes easy to spot in a project:
+
+```bash
+zotery "SW agentic arch" --note-title "📌 LitReview 2026 — multi-agent" \
+  --rq "What architectural patterns are proposed?"
+```
+
+The title is purely cosmetic — re-run detection keys off a hidden marker in the
+note footer, not the title, so changing it never breaks the idempotency check.
 
 Re-runs are **idempotent**: papers that already have a matching note are skipped
 unless you pass `--force` (summary notes and per-question RQ notes are tracked

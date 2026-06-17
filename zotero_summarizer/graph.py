@@ -17,8 +17,8 @@ from langgraph.graph import END, START, StateGraph
 
 from .pdf_utils import extract_text
 from .summarizer import (
-    RQ_HEADER,
-    SUMMARY_HEADER,
+    RQ_MARKER,
+    SUMMARY_MARKER,
     PaperSummary,
     RQAnswer,
     Summarizer,
@@ -37,6 +37,7 @@ class PaperState(TypedDict, total=False):
     limit: Optional[int]
     dry_run: bool
     rq: Optional[str]  # research question; when set, run RQ analysis not summary
+    note_title: Optional[str]  # custom <h1> title for the written note
     # queue
     items: List[dict]
     index: int
@@ -112,10 +113,10 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
             if rq:
                 # Same RQ already answered for this paper? (RQ text is embedded
                 # in the note, so a different RQ still gets its own note.)
-                already = zclient.note_matches(item["key"], RQ_HEADER, html.escape(rq))
+                already = zclient.note_matches(item["key"], RQ_MARKER, html.escape(rq))
                 noun = "an analysis for this research question"
             else:
-                already = zclient.note_matches(item["key"], SUMMARY_HEADER)
+                already = zclient.note_matches(item["key"], SUMMARY_MARKER)
                 noun = "an AI summary note"
             if already:
                 update["skip_reason"] = "already done"
@@ -179,6 +180,7 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
         result = {"title": state["current_title"], "key": item["key"]}
         output = state.get("current_output")
         rq = state.get("rq")
+        note_title = state.get("note_title")
 
         if output is None:
             result["status"] = state.get("skip_reason") or "skipped"
@@ -189,11 +191,13 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
         else:
             if rq:
                 html_note = rq_answer_to_html(
-                    state["current_title"], rq, output, summarizer.model_label
+                    state["current_title"], rq, output,
+                    summarizer.model_label, note_title,
                 )
             else:
                 html_note = summary_to_html(
-                    state["current_title"], output, summarizer.model_label
+                    state["current_title"], output,
+                    summarizer.model_label, note_title,
                 )
             zclient.add_note(item["key"], html_note)
             result["status"] = "answered" if rq else "summarized"

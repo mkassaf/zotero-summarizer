@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zotery"
-version = "0.1.0"
+version = "0.1.1"
 description = "Scan a Zotero collection, summarize each paper's PDF, and write the summary back as a note (LangGraph + DeepSeek)."
 readme = "README.md"
 requires-python = ">=3.10"

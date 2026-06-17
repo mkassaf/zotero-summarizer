@@ -39,6 +39,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "relevance judgement, reasoning, findings, and verbatim snippets.",
     )
     parser.add_argument(
+        "--note-title",
+        metavar="TITLE",
+        default=None,
+        help="Custom heading for the written note (shown as the note's title in "
+        "Zotero). Defaults to '🤖 AI Summary', or '🤖 Research-Question "
+        "Analysis' with --rq.",
+    )
+    parser.add_argument(
         "--limit", type=int, default=None, help="Only process the first N papers."
     )
     parser.add_argument(
@@ -93,6 +101,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "limit": args.limit,
                 "dry_run": args.dry_run,
                 "rq": args.rq,
+                "note_title": args.note_title,
             },
             # The graph loops one set of nodes per paper; raise the step ceiling.
             config={"recursion_limit": 10_000},
