@@ -10,12 +10,23 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, TypedDict
+import html
+from typing import List, Optional, TypedDict, Union
 
 from langgraph.graph import END, START, StateGraph
 
 from .pdf_utils import extract_text
-from .summarizer import PaperSummary, Summarizer, preview, summary_to_html
+from .summarizer import (
+    RQ_HEADER,
+    SUMMARY_HEADER,
+    PaperSummary,
+    RQAnswer,
+    Summarizer,
+    preview,
+    rq_answer_to_html,
+    rq_preview,
+    summary_to_html,
+)
 from .zotero_client import ZoteroClient
 
 
@@ -25,6 +36,7 @@ class PaperState(TypedDict, total=False):
     force: bool
     limit: Optional[int]
     dry_run: bool
+    rq: Optional[str]  # research question; when set, run RQ analysis not summary
     # queue
     items: List[dict]
     index: int
@@ -34,7 +46,7 @@ class PaperState(TypedDict, total=False):
     current_title: str
     current_authors: str
     current_text: Optional[str]
-    current_summary: Optional[PaperSummary]
+    current_output: Optional[Union[PaperSummary, RQAnswer]]
     skip_reason: Optional[str]
 
 
@@ -90,15 +102,25 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
             "current_title": title,
             "current_authors": _authors(item),
             "current_text": None,
-            "current_summary": None,
+            "current_output": None,
             "skip_reason": None,
         }
         print(f"\n[{state['index'] + 1}/{len(state['items'])}] {title}")
 
-        if not state.get("force") and zclient.summary_note_exists(item["key"]):
-            update["skip_reason"] = "already summarized"
-            print("  - skip: already has an AI summary note (use --force to redo)")
-            return update
+        rq = state.get("rq")
+        if not state.get("force"):
+            if rq:
+                # Same RQ already answered for this paper? (RQ text is embedded
+                # in the note, so a different RQ still gets its own note.)
+                already = zclient.note_matches(item["key"], RQ_HEADER, html.escape(rq))
+                noun = "an analysis for this research question"
+            else:
+                already = zclient.note_matches(item["key"], SUMMARY_HEADER)
+                noun = "an AI summary note"
+            if already:
+                update["skip_reason"] = "already done"
+                print(f"  - skip: already has {noun} (use --force to redo)")
+                return update
 
         attachment = zclient.find_pdf_attachment(item["key"])
         if not attachment:
@@ -125,18 +147,28 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
     def summarize(state: PaperState) -> dict:
         if not state.get("current_text"):
             return {}
-        print("  - summarizing with the LLM ...")
+        rq = state.get("rq")
         try:
-            summary = summarizer.summarize(
-                state["current_title"],
-                state["current_authors"],
-                state["current_text"],
-            )
-            return {"current_summary": summary}
+            if rq:
+                print("  - extracting evidence for the research question ...")
+                output = summarizer.answer_rq(
+                    state["current_title"],
+                    state["current_authors"],
+                    state["current_text"],
+                    rq,
+                )
+            else:
+                print("  - summarizing with the LLM ...")
+                output = summarizer.summarize(
+                    state["current_title"],
+                    state["current_authors"],
+                    state["current_text"],
+                )
+            return {"current_output": output}
         except Exception as exc:
             msg = _llm_error_message(exc)
             print(f"  - LLM error: {msg}")
-            update = {"current_summary": None, "skip_reason": f"LLM error: {msg}"}
+            update = {"current_output": None, "skip_reason": f"LLM error: {msg}"}
             if _is_fatal_llm_error(exc):
                 update["fatal_error"] = msg
                 print("  - this looks fatal (auth/balance/access); stopping the run.")
@@ -145,20 +177,26 @@ def build_graph(zclient: ZoteroClient, summarizer: Summarizer):
     def write_note(state: PaperState) -> dict:
         item = state["items"][state["index"]]
         result = {"title": state["current_title"], "key": item["key"]}
-        summary = state.get("current_summary")
+        output = state.get("current_output")
+        rq = state.get("rq")
 
-        if summary is None:
+        if output is None:
             result["status"] = state.get("skip_reason") or "skipped"
         elif state.get("dry_run"):
             result["status"] = "dry-run (not written)"
-            print("  - dry-run: summary generated but NOT written to Zotero")
-            print(preview(summary))
+            print("  - dry-run: generated but NOT written to Zotero")
+            print(rq_preview(rq, output) if rq else preview(output))
         else:
-            html_note = summary_to_html(
-                state["current_title"], summary, summarizer.model_label
-            )
+            if rq:
+                html_note = rq_answer_to_html(
+                    state["current_title"], rq, output, summarizer.model_label
+                )
+            else:
+                html_note = summary_to_html(
+                    state["current_title"], output, summarizer.model_label
+                )
             zclient.add_note(item["key"], html_note)
-            result["status"] = "summarized"
+            result["status"] = "answered" if rq else "summarized"
             print("  - note added to Zotero ✓")
 
         return {"results": state["results"] + [result], "index": state["index"] + 1}

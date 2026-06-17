@@ -4,19 +4,22 @@
 [![Python](https://img.shields.io/pypi/pyversions/zotery.svg)](https://pypi.org/project/zotery/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Scan a **Zotero** collection, read each paper's attached **PDF**, generate a
-structured summary with an **LLM** (DeepSeek, Google Gemini, or a local Ollama
-model), and write that summary back into Zotero as a **child note** on the paper.
+Scan a **Zotero** collection, read each paper's attached **PDF**, run an **LLM**
+(DeepSeek, Google Gemini, or a local Ollama model) over it, and write the result
+back into Zotero as a **child note** on the paper.
 
 > Install it as **`zotery`**, run it as **`zotery`**. (The Python module is
 > `zotero_summarizer`.)
 
-Every summary contains four sections:
+Two modes:
 
-- **Motivation & Main Problem**
-- **Key Findings**
-- **Methodology**
-- **Future Work**
+1. **Summary** (default) — a structured 4-part summary of each paper:
+   **Motivation & Main Problem · Key Findings · Methodology · Future Work**.
+2. **Research question** (`--rq "..."`) — instead of a generic summary, the model
+   reads each paper *against your question* and writes back: a **relevance**
+   judgement (high/medium/low/none), a grounded **answer**, its **reasoning**,
+   **findings**, and **verbatim supporting snippets** quoted from the paper. Great
+   for screening a large collection during a literature review.
 
 The pipeline is orchestrated with **LangGraph**:
 
@@ -26,8 +29,9 @@ START → load_items → process_paper → summarize → write_note → END
 ```
 
 `load_items` scans the collection · `process_paper` finds + downloads + extracts
-the PDF · `summarize` calls the LLM for a structured `PaperSummary` · `write_note`
-renders it to HTML and pushes it to Zotero.
+the PDF · `summarize` calls the LLM for a structured `PaperSummary` (or an
+`RQAnswer` in `--rq` mode) · `write_note` renders it to HTML and pushes it to
+Zotero.
 
 ## How it connects to Zotero
 
@@ -52,7 +56,7 @@ which speaks to both Zotero APIs:
 
 Requires **Python 3.10+** (the LangChain stack no longer supports 3.9).
 
-From PyPI (current version **0.0.3**):
+From PyPI (current version **0.1.0**):
 
 ```bash
 pip install zotery
@@ -171,16 +175,47 @@ LLM_PROVIDER=google LLM_MODEL=gemini-2.5-flash zotery "Literature Review"
 
 Flags:
 
-| flag                  | meaning                                                       |
-|-----------------------|---------------------------------------------------------------|
-| `--limit N`           | only process the first N papers                               |
-| `--dry-run`           | generate and print summaries, but don't write notes to Zotero |
-| `--force`             | re-summarize even if an AI summary note already exists        |
-| `--llm-api-key KEY`   | LLM API key; overrides `LLM_API_KEY` and the provider env var |
-| `--zotero-api-key KEY`| Zotero Web API key; overrides `ZOTERO_API_KEY`                |
+| flag                  | meaning                                                        |
+|-----------------------|----------------------------------------------------------------|
+| `--rq "QUESTION"`     | answer a research question per paper instead of summarizing    |
+| `--limit N`           | only process the first N papers                                |
+| `--dry-run`           | generate and print results, but don't write notes to Zotero    |
+| `--force`             | redo papers that already have a matching note                  |
+| `--llm-api-key KEY`   | LLM API key; overrides `LLM_API_KEY` and the provider env var  |
+| `--zotero-api-key KEY`| Zotero Web API key; overrides `ZOTERO_API_KEY`                 |
 
-Re-runs are **idempotent**: papers that already have an AI summary note are
-skipped unless you pass `--force`.
+Re-runs are **idempotent**: papers that already have a matching note are skipped
+unless you pass `--force` (summary notes and per-question RQ notes are tracked
+separately, so a summary and several different `--rq` runs can coexist).
+
+### Answer a research question (`--rq`)
+
+Screen a collection against a specific question. For every paper, zotery writes a
+note with a **relevance** rating, a grounded **answer**, the model's
+**reasoning**, **findings**, and **verbatim snippets** quoted from the paper:
+
+```bash
+# Always preview first — see the answers without touching your library
+zotery "SW agentic arch" --dry-run --limit 5 \
+  --rq "What architectural patterns are proposed for multi-agent LLM systems?"
+
+# Looks good? Run it for real (writes one RQ note per paper)
+zotery "SW agentic arch" \
+  --rq "What architectural patterns are proposed for multi-agent LLM systems?"
+
+# Locally & free with Ollama
+LLM_PROVIDER=ollama LLM_MODEL=qwen3:8b zotery "SW agentic arch" \
+  --rq "How is agent reliability evaluated?"
+```
+
+Each note is tagged with its exact question, so you can ask **several different
+questions** over the same collection and each produces its own note. Papers that
+don't address the question come back with relevance **`none`** and a one-line
+note saying so — handy for quickly excluding irrelevant papers.
+
+> Tip: papers without an extractable PDF (scanned/image-only, or no attachment)
+> are skipped in both modes. Use `--dry-run --limit N` to sanity-check output
+> quality before a large run.
 
 ### Run locally & free with Ollama
 
@@ -232,7 +267,7 @@ Notes:
 | `config.py`         | load `.env`; build the LLM (DeepSeek / Google / Ollama / OpenAI) |
 | `zotero_client.py`  | list collection papers, find/download PDFs, write notes         |
 | `pdf_utils.py`      | extract text from PDF bytes                                     |
-| `summarizer.py`     | prompt + structured (`PaperSummary`) output + note HTML         |
+| `summarizer.py`     | prompts + structured output (`PaperSummary` / `RQAnswer`) + note HTML |
 | `graph.py`          | the LangGraph pipeline                                          |
 | `cli.py`            | argument parsing and the run report                            |
 

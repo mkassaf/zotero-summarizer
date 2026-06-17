@@ -38,10 +38,6 @@ def _resolve_user_id(library_id: str, api_key: str) -> str:
         )
     return numeric
 
-# Substring embedded in every note we create, so re-runs can detect and skip
-# papers that already have an AI summary.
-SUMMARY_MARKER = "zotery"
-
 # Zotero item/collection keys are 8 uppercase alphanumerics.
 _KEY_RE = re.compile(r"^[A-Z0-9]{8}$")
 
@@ -134,10 +130,19 @@ class ZoteroClient:
         return None
 
     # -- notes -----------------------------------------------------------
-    def summary_note_exists(self, item_key: str) -> bool:
+    def note_matches(self, item_key: str, *needles: str) -> bool:
+        """True if the item has a child note whose HTML contains every needle.
+
+        Used to detect notes this tool already wrote (e.g. an AI summary, or an
+        analysis for a specific research question) so re-runs can skip them."""
+        if not needles:
+            return False
         for child in self.zot.children(item_key):
             data = child["data"]
-            if data.get("itemType") == "note" and SUMMARY_MARKER in (data.get("note") or ""):
+            if data.get("itemType") != "note":
+                continue
+            note = data.get("note") or ""
+            if all(n in note for n in needles):
                 return True
         return False
 

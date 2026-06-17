@@ -22,11 +22,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="zotery",
         description="Summarize every paper's PDF in a Zotero collection and "
-        "write the summary back as a note.",
+        "write the summary back as a note. With --rq, answer a research question "
+        "from each paper (relevance, reasoning, findings, verbatim snippets) "
+        "instead of writing a generic summary.",
     )
     parser.add_argument(
         "collection",
         help="Collection name (case-insensitive) or its 8-character key.",
+    )
+    parser.add_argument(
+        "--rq",
+        metavar="QUESTION",
+        default=None,
+        help="Research question. Instead of a generic summary, extract the "
+        "passages that answer this question from each paper, with the model's "
+        "relevance judgement, reasoning, findings, and verbatim snippets.",
     )
     parser.add_argument(
         "--limit", type=int, default=None, help="Only process the first N papers."
@@ -72,6 +82,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     summarizer = Summarizer(llm, settings.llm_model)
     graph = build_graph(zclient, summarizer)
 
+    if args.rq:
+        print(f'Research question: "{args.rq}"')
+
     try:
         final = graph.invoke(
             {
@@ -79,6 +92,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "force": args.force,
                 "limit": args.limit,
                 "dry_run": args.dry_run,
+                "rq": args.rq,
             },
             # The graph loops one set of nodes per paper; raise the step ceiling.
             config={"recursion_limit": 10_000},
@@ -89,10 +103,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
 
     results = final.get("results", [])
-    print("\n=== Summary report ===")
+    label = "RQ analysis" if args.rq else "Summary"
+    print(f"\n=== {label} report ===")
     for r in results:
         print(f"  [{r['status']:<28}] {r['title']}")
-    written = sum(1 for r in results if r["status"] == "summarized")
+    written = sum(1 for r in results if r["status"] in ("summarized", "answered"))
     print(f"\n{len(results)} paper(s) processed, {written} note(s) written.")
 
     fatal = final.get("fatal_error")
