@@ -39,9 +39,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         action="store_true",
         help="Generate summaries and print them, but don't write to Zotero.",
     )
+    parser.add_argument(
+        "--llm-api-key",
+        metavar="KEY",
+        default=None,
+        help="API key for the LLM provider. Takes precedence over LLM_API_KEY "
+        "and the provider's standard env var (DEEPSEEK_API_KEY, OPENAI_API_KEY, "
+        "GOOGLE_API_KEY). Not needed for Ollama.",
+    )
+    parser.add_argument(
+        "--zotero-api-key",
+        metavar="KEY",
+        default=None,
+        help="Zotero Web API key. Takes precedence over ZOTERO_API_KEY. "
+        "Not needed in local mode (ZOTERO_LOCAL=true).",
+    )
     args = parser.parse_args(argv)
 
-    settings = load_settings()
+    settings = load_settings(
+        llm_api_key=args.llm_api_key,
+        zotero_api_key=args.zotero_api_key,
+    )
     try:
         zclient = ZoteroClient(settings)
         llm = build_llm(settings)
@@ -79,7 +97,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if fatal:
         print(f"\nStopped early — LLM error: {fatal}", file=sys.stderr)
         print(
-            "Check LLM_API_KEY / account balance in .env, or switch LLM_PROVIDER.",
+            "Check the API key (--llm-api-key, LLM_API_KEY, or the provider's "
+            "standard env var) and account balance, or switch LLM_PROVIDER.",
             file=sys.stderr,
         )
         return 1

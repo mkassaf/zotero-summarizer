@@ -1,8 +1,15 @@
-# zotero-summarizer
+# zotery
+
+[![PyPI](https://img.shields.io/pypi/v/zotery.svg)](https://pypi.org/project/zotery/)
+[![Python](https://img.shields.io/pypi/pyversions/zotery.svg)](https://pypi.org/project/zotery/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Scan a **Zotero** collection, read each paper's attached **PDF**, generate a
 structured summary with an **LLM** (DeepSeek, Google Gemini, or a local Ollama
 model), and write that summary back into Zotero as a **child note** on the paper.
+
+> **Names:** the PyPI package is **`zotery`**; the installed command is
+> **`zotero-summarizer`** (the Python module is `zotero_summarizer`).
 
 Every summary contains four sections:
 
@@ -41,21 +48,45 @@ which speaks to both Zotero APIs:
 > Zotero MCP client. pyzotero is the default because it needs no extra service
 > and reads local PDFs directly.
 
-## Setup
+## Install
 
 Requires **Python 3.10+** (the LangChain stack no longer supports 3.9).
 
+From PyPI (current version **0.0.1**):
+
 ```bash
-git clone https://github.com/<you>/zotero-summarizer.git
+pip install zotery
+# or, with uv:
+uv tool install zotery      # installs the `zotero-summarizer` command globally
+```
+
+This puts the `zotero-summarizer` command on your PATH. Then create a config file
+from the template and edit it (see below):
+
+```bash
+curl -O https://raw.githubusercontent.com/mkassaf/zotero-summarizer/main/.env.example
+mv .env.example .env
+# edit .env, or export the variables in your shell instead
+```
+
+> `.env` is optional — every setting can also come from real environment
+> variables or CLI flags. See [Configuration](#configure-the-llm) below.
+
+<details>
+<summary>Install from source (for development)</summary>
+
+```bash
+git clone https://github.com/mkassaf/zotero-summarizer.git
 cd zotero-summarizer
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .            # or: uv sync
 
 cp .env.example .env
 # then edit .env  (see below)
 ```
+</details>
 
 ### Configure Zotero (`.env`)
 
@@ -80,46 +111,73 @@ ZOTERO_API_KEY=your-write-key
 `ZOTERO_LIBRARY_ID` accepts your **username** — it's resolved to the numeric id
 the Web API requires, using your API key. The numeric id works too.
 
-### Configure the LLM (`.env`)
+### Configure the LLM
 
 Pick one provider:
 
-| Provider | `.env` | Notes |
-|----------|--------|-------|
-| **Google Gemini** | `LLM_PROVIDER=google`<br>`LLM_MODEL=gemini-2.5-flash` | Key read from the `GOOGLE_API_KEY` env var. Fast, recommended for big runs. |
-| **DeepSeek** | `LLM_PROVIDER=deepseek`<br>`LLM_MODEL=deepseek-chat`<br>`LLM_API_KEY=sk-...` | Key from <https://platform.deepseek.com>. |
-| **Ollama (local, free)** | `LLM_PROVIDER=ollama`<br>`LLM_MODEL=qwen3:8b` | Needs Ollama running + `ollama pull qwen3:8b`. Uses native JSON-schema output. Slower per paper. |
-| **OpenAI-compatible** | `LLM_PROVIDER=openai`<br>`LLM_MODEL=...`<br>`LLM_API_KEY=...`<br>`LLM_BASE_URL=...` | OpenAI, Together, vLLM, etc. |
+| Provider | Settings | Standard key env var | Notes |
+|----------|----------|----------------------|-------|
+| **DeepSeek** (default) | `LLM_PROVIDER=deepseek`<br>`LLM_MODEL=deepseek-chat` | `DEEPSEEK_API_KEY` | Key from <https://platform.deepseek.com>. |
+| **Google Gemini** | `LLM_PROVIDER=google`<br>`LLM_MODEL=gemini-2.5-flash` | `GOOGLE_API_KEY` | Fast, recommended for big runs. |
+| **OpenAI-compatible** | `LLM_PROVIDER=openai`<br>`LLM_MODEL=gpt-4o-mini`<br>`LLM_BASE_URL=...` | `OPENAI_API_KEY` | OpenAI, Together, vLLM, etc. |
+| **Ollama (local, free)** | `LLM_PROVIDER=ollama`<br>`LLM_MODEL=qwen3:8b` | *(none)* | Needs Ollama running + `ollama pull qwen3:8b`. Native JSON-schema output. Slower per paper. |
+
+#### Where the API key comes from
+
+The LLM key is resolved in this order — **first match wins**:
+
+1. **CLI flag** — `--llm-api-key sk-...` (highest precedence; never written to disk).
+2. **Generic override** — `LLM_API_KEY` (works for any provider).
+3. **Provider's standard env var** — `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, or
+   `GOOGLE_API_KEY` (see the table). Use these if you already export your keys
+   globally in your shell — nothing extra to configure here.
+
+The Zotero key works the same way: `--zotero-api-key` overrides `ZOTERO_API_KEY`.
+
+```bash
+# Example: provider + key entirely from the command line, no .env needed
+zotero-summarizer "Literature Review" \
+  --llm-api-key "$MY_KEY" --zotero-api-key "$ZKEY"
+
+# Example: rely on a globally-exported key (e.g. in ~/.zshrc)
+export OPENAI_API_KEY=sk-...
+LLM_PROVIDER=openai LLM_MODEL=gpt-4o-mini zotero-summarizer "Literature Review"
+```
 
 > Ollama tip: the default base URL is `http://127.0.0.1:11434`. Use `127.0.0.1`,
 > not `localhost` — `localhost` can resolve to IPv6/Docker and miss your models.
 
 ## Usage
 
+After `pip install zotery`, use the `zotero-summarizer` command (or, from a
+source checkout, `python -m zotero_summarizer`):
+
 ```bash
 # Summarize every paper in a collection (by name or 8-char key)
-python -m zotero_summarizer "Literature Review"
+zotero-summarizer "Literature Review"
 
 # Preview first: generate + print summaries, write nothing
-python -m zotero_summarizer "Literature Review" --dry-run --limit 3
+zotero-summarizer "Literature Review" --dry-run --limit 3
 
 # Re-summarize papers that already have an AI note
-python -m zotero_summarizer ABCD1234 --force
+zotero-summarizer ABCD1234 --force
 ```
 
 Override the provider per-run without editing `.env`:
 
 ```bash
-LLM_PROVIDER=google LLM_MODEL=gemini-2.5-flash python -m zotero_summarizer "Literature Review"
+LLM_PROVIDER=google LLM_MODEL=gemini-2.5-flash zotero-summarizer "Literature Review"
 ```
 
 Flags:
 
-| flag        | meaning                                                        |
-|-------------|----------------------------------------------------------------|
-| `--limit N` | only process the first N papers                                |
-| `--dry-run` | generate and print summaries, but don't write notes to Zotero  |
-| `--force`   | re-summarize even if an AI summary note already exists         |
+| flag                  | meaning                                                       |
+|-----------------------|---------------------------------------------------------------|
+| `--limit N`           | only process the first N papers                               |
+| `--dry-run`           | generate and print summaries, but don't write notes to Zotero |
+| `--force`             | re-summarize even if an AI summary note already exists        |
+| `--llm-api-key KEY`   | LLM API key; overrides `LLM_API_KEY` and the provider env var |
+| `--zotero-api-key KEY`| Zotero Web API key; overrides `ZOTERO_API_KEY`                |
 
 Re-runs are **idempotent**: papers that already have an AI summary note are
 skipped unless you pass `--force`.

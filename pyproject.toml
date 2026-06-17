@@ -1,12 +1,28 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "zotero-summarizer"
-version = "0.1.0"
+name = "zotery"
+version = "0.0.1"
 description = "Scan a Zotero collection, summarize each paper's PDF, and write the summary back as a note (LangGraph + DeepSeek)."
+readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Mustafa Assaf", email = "must.saf@gmail.com" },
+]
+keywords = ["zotero", "summarization", "langgraph", "pdf", "llm", "research"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: General",
+]
 dependencies = [
     "pyzotero>=1.5.18",
     "pypdf>=4.2",
@@ -17,6 +33,11 @@ dependencies = [
     "pydantic>=2.6",
     "python-dotenv>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mkassaf/zotero-summarizer"
+Repository = "https://github.com/mkassaf/zotero-summarizer"
+Issues = "https://github.com/mkassaf/zotero-summarizer/issues"
 
 [project.scripts]
 zotero-summarizer = "zotero_summarizer.cli:main"
