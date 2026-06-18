@@ -1,0 +1,10 @@
+{
+  "disabledMcpjsonServers": [
+    "semantic-scholar-mcp"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(python -m zotero_summarizer --help)"
+    ]
+  }
+}

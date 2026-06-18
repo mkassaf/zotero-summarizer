@@ -8,6 +8,37 @@ Scan a **Zotero** collection, read each paper's attached **PDF**, run an **LLM**
 (DeepSeek, Google Gemini, or a local Ollama model) over it, and write the result
 back into Zotero as a **child note** on the paper.
 
+## Contents
+
+- [Quick start](#quick-start)
+- [How it connects to Zotero](#how-it-connects-to-zotero)
+- [Install](#install)
+- [Configure the LLM](#configure-the-llm)
+- [Usage](#usage)
+  - [Answer a research question (`--rq`)](#answer-a-research-question---rq)
+  - [Run locally & free with Ollama](#run-locally--free-with-ollama)
+- [How it works](#how-it-works)
+- [Notes & limits](#notes--limits)
+
+## Quick start
+
+```bash
+# 1. Install
+pip install zotery
+
+# 2. Preview — no API key, no Zotero account, no writes (just needs Zotero 7 running)
+zotery "Your Collection Name" --dry-run --limit 2
+
+# 3. Write notes — needs a Zotero Web API key (see Configure below)
+zotery "Your Collection Name"
+```
+
+> 💡 **Zero-config preview:** With the Zotero 7 desktop app running, you can
+> immediately test summarization on any collection — no API keys, no `.env`:
+> `zotery "My Collection" --dry-run --limit 3`. This reads PDFs straight
+> from your local Zotero storage. Writing notes back requires the Web API
+> (see [Configure Zotero](#configure-zotero-env)).
+
 > Install it as **`zotery`**, run it as **`zotery`**. (The Python module is
 > `zotero_summarizer`.)
 
@@ -32,6 +63,21 @@ START → load_items → process_paper → summarize → write_note → END
 the PDF · `summarize` calls the LLM for a structured `PaperSummary` (or an
 `RQAnswer` in `--rq` mode) · `write_note` renders it to HTML and pushes it to
 Zotero.
+
+### What you get
+
+Each paper gets a note in Zotero with four structured sections:
+
+> **Motivation & Main Problem** — The authors address the challenge of ...
+> **Key Findings** — Experiments show that ...
+> **Methodology** — Using a dataset of ... with a transformer-based ...
+> **Future Work** — The paper suggests extending the approach to ...
+
+With `--rq`, notes instead include a **relevance** rating (high/medium/low/none),
+a grounded **answer**, model **reasoning**, **findings**, and **verbatim
+snippets** quoted from the paper. Papers that don't address your question come
+back with relevance **`none`** and a one-line note — handy for screening a
+large collection quickly.
 
 ## How it connects to Zotero
 
@@ -74,7 +120,10 @@ mv .env.example .env
 ```
 
 > `.env` is optional — every setting can also come from real environment
-> variables or CLI flags. See [Configuration](#configure-the-llm) below.
+> variables or CLI flags. The downloaded template defaults to
+> `ZOTERO_LOCAL=true` (read-only preview); flip it to `false` and fill in the
+> Web API fields when you're ready to write notes. See
+> [Configuration](#configure-the-llm) below.
 
 <details>
 <summary>Install from source (for development)</summary>
@@ -125,6 +174,9 @@ Pick one provider:
 | **Google Gemini** | `LLM_PROVIDER=google`<br>`LLM_MODEL=gemini-2.5-flash` | `GOOGLE_API_KEY` | Fast, recommended for big runs. |
 | **OpenAI-compatible** | `LLM_PROVIDER=openai`<br>`LLM_MODEL=gpt-4o-mini`<br>`LLM_BASE_URL=...` | `OPENAI_API_KEY` | OpenAI, Together, vLLM, etc. |
 | **Ollama (local, free)** | `LLM_PROVIDER=ollama`<br>`LLM_MODEL=qwen3:8b` | *(none)* | Needs Ollama running + `ollama pull qwen3:8b`. Native JSON-schema output. Slower per paper. |
+
+> The `LLM_PROVIDER` value accepts shorthand aliases: `gemini` or
+> `google-genai` → `google`; `openai-compatible` or `compatible` → `openai`.
 
 #### Where the API key comes from
 
@@ -289,10 +341,16 @@ Notes:
 - **Writing requires the Web API.** The local API is read-only; use it only for
   reading/`--dry-run`.
 - **Scanned/image-only PDFs** yield no text and are skipped (no OCR).
-- Long PDFs are truncated to `MAX_PDF_CHARS` (default 48k chars) to stay within
-  the model's context window.
+- Long PDFs are truncated to `MAX_PDF_CHARS` (default 48k chars, configurable in
+  `.env`) to stay within the model's context window. Raise or lower it to match
+  your model's capacity.
 - PDFs are fetched via the API, falling back to `ZOTERO_STORAGE_DIR` (the local
   `storage/` folder, auto-detected at `~/Zotero/storage`). This means Web API
   mode works **without** Zotero file sync.
 - Never commit your `.env` — it holds your API keys (it's already in
   `.gitignore`).
+
+## Contributing
+
+Bug reports and pull requests are welcome —
+[open an issue](https://github.com/mkassaf/zotero-summarizer/issues).
